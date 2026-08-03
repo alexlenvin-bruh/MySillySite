@@ -1,0 +1,100 @@
+﻿<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Введение в эллиптические кривые с комплексным умножением</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="logo" href="../index.html">ALV<span>.</span></a>
+      <div class="nav-links">
+        <a href="../#about">Обо мне</a>
+        <a href="../#projects">Проекты</a>
+        <a href="index.html">Гайды</a>
+        <div class="lang-switch"><span>RU</span><a href="../en/guides/ecc-intro.html" lang="en">EN</a></div><button class="theme-toggle" id="theme-toggle" title="Сменить тему">☀️</button>
+      </div>
+    </nav>
+
+    <a href="index.html" class="back-link">← Назад к гайдам</a>
+
+    <article>
+      <header class="article-header">
+        <h1>Введение в эллиптические кривые с комплексным умножением</h1>
+        <div class="article-meta">
+          <span class="date">15 июля 2026</span>
+          <span class="tag">#crypto</span><span class="tag">#math</span><span class="tag">#ecc</span>
+        </div>
+      </header>
+      <div class="article-body">
+
+<p>Эллиптические кривые (ECC) — красивый математический объект, который позволяет делать криптографию с маленькими ключами и высокой стойкостью. А эллиптические кривые с комплексным умножением (Complex Multiplication, CM) — это вообще отдельный уровень эстетики.</p>
+
+<h2>Зачем CM?</h2>
+
+<p>Обычно для ECC нужно считать порядок группы точек кривой — это сложно и медленно. Кривые с CM позволяют <strong>конструировать кривые с заданным порядком</strong>, используя теорию мнимых квадратичных полей.</p>
+
+<p>Грубо говоря: вместо того чтобы брать случайную кривую и молиться, что её порядок простой, мы строим кривую, у которой порядок точно простой (или почти простой) по заданным параметрам.</p>
+
+<h2>Математическая суть</h2>
+
+<p>Пусть <code>E</code> — эллиптическая кривая над полем <code>𝔽_p</code>. Комплексное умножение означает, что кольцо эндоморфизмов <code>End(E)</code> строго больше <code>ℤ</code>.</p>
+
+<p>Для кривых с CM существует алгоритм конструирования:</p>
+
+<ol>
+  <li>Выбираем дискриминант <code>D &lt; 0</code> мнимого квадратичного поля <code>ℚ(√D)</code>.</li>
+  <li>Находим <code>p</code> такое, что уравнение <code>4p = t² - D·y²</code> имеет решение в целых числах.</li>
+  <li>Используем многочлен Гильберта <code>H_D(x)</code> для нахождения <code>j</code>-инварианта.</li>
+  <li>Строим кривую с этим <code>j</code>-инвариантом над <code>𝔽_p</code>.</li>
+</ol>
+
+<h2>Многочлен Гильберта</h2>
+
+<p>Это многочлен, корни которого — <code>j</code>-инварианты кривых с CM по дискриминанту <code>D</code>. Для маленьких <code>D</code> его можно вычислить явно:</p>
+
+<pre><code># Пример: вычисление многочлена Гильберта для D = -3
+# (упрощённо, на самом деле это намного сложнее)
+
+from sageall import *
+
+D = -3
+H = hilbert_class_polynomial(D)
+print(H)
+# x - 54000 для D = -3 (j-инвариант кривой y² = x³ + 1)
+</code></pre>
+
+<p>Для больших <code>D</code> используют алгоритмы с плавающей точкой (complex analytic method) или <code>p</code>-адические методы.</p>
+
+<h2>Практическое применение</h2>
+
+<p>Кривые с CM используются в:</p>
+
+<ul>
+  <li><strong>Pairing-based cryptography</strong> — для построения криптосистем с билинейным отображением.</li>
+  <li><strong>Post-quantum заготовки</strong> — изучение изогений между кривыми с CM.</li>
+  <li><strong>Генерация безопасных параметров</strong> — когда нужна кривая с точно известными свойствами.</li>
+</ul>
+
+<h2>Итог</h2>
+
+<p>CM — это не просто абстрактная красота. Это инструмент для конструирования криптографически значимых объектов с контролируемыми свойствами. Если у вас есть SageMath под рукой — попробуйте поиграть с <code>hilbert_class_polynomial</code> для разных <code>D</code>. Это завораживает.</p>
+
+      </div>
+    </article>
+
+    <footer>
+      <p>© AlexLenVin</p>
+      <div class="socials"><a href="mailto:alexlenvin@gmail.com">Email</a></div>
+    </footer>
+  </div>
+  <script src="../js/theme.js"></script>
+</body>
+</html>
+
+
+
+
+

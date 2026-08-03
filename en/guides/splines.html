@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Splines: Teaching a Curve Some Manners</title>
+  <link rel="stylesheet" href="../../css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="logo" href="../index.html">ALV<span>.</span></a>
+      <div class="nav-links">
+        <a href="../index.html#about">About</a>
+        <a href="../index.html#projects">Projects</a>
+        <a href="index.html">Notes</a>
+        <div class="lang-switch"><a href="../../guides/splines.html" lang="ru" hreflang="ru">RU</a><span>EN</span></div>
+        <button class="theme-toggle" id="theme-toggle" title="Change theme">☀️</button>
+      </div>
+    </nav>
+
+    <a href="index.html" class="back-link">← Back to notes</a>
+
+    <article>
+      <header class="article-header">
+        <h1>Splines: Teaching a Curve Some Manners</h1>
+        <div class="article-meta">
+          <span class="date">23 July 2026</span>
+          <span class="tag">#numerical-methods</span><span class="tag">#python</span><span class="tag">#calculus</span>
+        </div>
+      </header>
+      <div class="article-body">
+
+<p>Imagine that you have several points and need to draw a smooth curve through them. You could connect them with straight lines, but that gives you a jagged polyline: rough, ugly, with the derivative jumping at every joint. You could use one enormous polynomial passing through every point, but polynomial interpolation has a habit of exploding near the edges — hello, Runge's phenomenon. Or you could do it properly. This is where <strong>splines</strong> come in.</p>
+
+<h2>What Is a Spline?</h2>
+
+<p>A <strong>spline</strong> is a piecewise-defined function. Each interval between control points has its own formula, usually a polynomial, and the pieces are joined neatly at their boundaries.</p>
+
+<p>A few terms that will come up:</p>
+
+<ul>
+  <li><strong>Control (support) points</strong> — points at which the function value is known. The spline segments are built from them.</li>
+  <li><strong>Control polygon</strong> — a polyline connecting the control points. It is effectively a linear spline, the simplest possible case.</li>
+  <li><strong>Spline degree</strong> — the highest degree of the polynomials used.</li>
+  <li><strong>Smoothness</strong> — the highest order of continuous derivative. The higher it is, the smoother the joints.</li>
+  <li><strong>Defect</strong> — the difference between degree and smoothness. A polyline is a degree-one spline with defect one.</li>
+</ul>
+
+<p>We are interested in a cubic spline: degree 3 and smoothness 2. In other words, every interval contains a cubic polynomial, while the values, first derivatives, and second derivatives match at the joints.</p>
+
+<h2>The Problem</h2>
+
+<p>We need to construct a cubic spline for \(\cos(x^2)\) over \([0, 5]\), using two grids: one with \(n = 5\) nodes and another with \(n = 25\). Then we compare how far the spline misses the true function.</p>
+
+<h2>How It Works</h2>
+
+<p>On each interval \([x_{k-1},\, x_k]\), the spline has the form:</p>
+
+$$S(x) = a_k + b_k(x - x_{k-1}) + c_k(x - x_{k-1})^2 + d_k(x - x_{k-1})^3$$
+
+<p>The \(a\) coefficients are simply the function values at the nodes. Finding \(b\), \(c\), and \(d\) requires solving a system of equations. For a uniform grid, where the step \(h\) is constant, it looks like this:</p>
+
+$$c_{k-1} \cdot h + 2c_k \cdot (h + h) + c_{k+1} \cdot h = 3\left(\frac{y_{k+1} - y_k}{h} - \frac{y_k - y_{k-1}}{h}\right)$$
+
+<p>This produces a tridiagonal matrix — a near-perfect candidate for the <strong>Thomas algorithm</strong>, also known as the tridiagonal matrix algorithm.</p>
+
+<h2>The Thomas Algorithm</h2>
+
+<p>Tridiagonal systems can be solved using ordinary Gaussian elimination, but the Thomas algorithm does it faster: \(O(n)\) rather than \(O(n^3)\). First comes a forward sweep, where auxiliary coefficients \(P\) and \(Q\) are calculated. Then the backward sweep reconstructs \(c\), one value at a time, from last to first.</p>
+
+<pre>
+# Forward sweep
+P[0] = −h / (4h)
+Q[0] = r[0] / (4h)
+
+for i in range(1, n−1):
+    D = h·P[i−1] + 4h
+    P[i] = −h / D
+    Q[i] = (r[i] − h·Q[i−1]) / D
+
+# Backward sweep
+c[n−1] = Q[n−1]
+for i in range(n−2, −1, −1):
+    c[i] = P[i]·c[i+1] + Q[i]
+</pre>
+
+<p>To make sure the algorithm works correctly, you can compare its output with <code>numpy.linalg.solve</code>. The results should match.</p>
+
+<h2>Building the Grid and Doing the Maths</h2>
+
+<pre>
+import math
+
+a, b = 0, 5
+
+# n = 5
+n1 = 5
+h1 = (b - a) / n1
+grid_1_x = [i for i in range(n1 + 1)]
+grid_1_y = [math.cos((i * h1)**2) for i in range(n1 + 1)]
+
+# n = 25
+n2 = 25
+h2 = (b - a) / n2
+grid_2_x = [i * h2 for i in range(n2 + 1)]
+grid_2_y = [math.cos((i * h2)**2) for i in range(n2 + 1)]
+</pre>
+
+<p>Once the coefficients are known, the spline can be evaluated at any point: choose the appropriate interval and substitute the point into the formula with <code>a</code>, <code>b</code>, <code>c</code>, and <code>d</code>.</p>
+
+<h2>Accuracy: n = 5 vs n = 25</h2>
+
+<p>To estimate the accuracy, we evaluate the spline at the midpoint of each interval and compare it with the true function.</p>
+
+<table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">Parameter</th>
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">\(n = 5\)</th>
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">\(n = 25\)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Grid step \(h\)</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">1.0</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">0.2</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Number of intervals</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">5</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">25</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Error</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">noticeable — the function oscillates rapidly</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">orders of magnitude smaller</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The function \(\cos(x^2)\) is a tricky one: the farther it moves from zero, the faster it oscillates. With \(n = 5\) and \(h = 1\), the spline cannot keep up with those oscillations. At \(n = 25\), the grid is much denser and the accuracy improves dramatically. The graph makes this clear: at \(n = 25\), the right-hand side almost perfectly matches the reference spline. The grey line (library) and black line (manual) differ noticeably only where the function changes especially quickly.</p>
+
+<figure style="margin: 24px 0;">
+  <img src="../../guides/spline-graph-n25.png" alt="Spline graph for n=25: the manual and library splines match almost perfectly" style="width: 100%; border-radius: 8px;">
+  <figcaption style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9em;">Spline for n = 25. Grey: scipy.CubicSpline. Black: manual calculation. Stars mark the grid nodes.</figcaption>
+</figure>
+
+<h2>Plotting It in Code</h2>
+
+<p>For visualisation, the spline is assembled as a piecewise function using <code>sympy.Piecewise</code>, then “compiled” into a fast NumPy-compatible function with <code>lambdify</code>. A reference spline is also built with <code>scipy.interpolate.CubicSpline</code>, making it easy to see how closely the hand-written implementation matches the library version.</p>
+
+<pre>
+import sympy as sm
+
+x = sm.Symbol('x')
+S = sm.Piecewise(*[
+    (a_k + b_k*(x - x_prev) + c_k*(x - x_prev)**2 + d_k*(x - x_prev)**3,
+     (x >= x_prev) & (x <= x_next))
+    for k in range(1, n+1)
+], (sm.nan, True))
+
+S_func = sm.lambdify(x, S, modules=['numpy'])
+</pre>
+
+<h2>In Short</h2>
+
+<p>Cubic splines let us draw smooth curves through a set of points without the explosive error growth of high-degree polynomial interpolation. The key point is simple: the denser the grid, the more accurate the result. A small \(n\) is enough for well-behaved functions; rapidly changing ones need more nodes. Meanwhile, the Thomas algorithm solves the system in linear time, keeping the entire approach practical even for large grids.</p>
+
+      </div>
+    </article>
+
+    <footer>
+      <p>© AlexLenVin</p>
+      <div class="socials"><a href="mailto:alexlenvin@gmail.com">Email</a></div>
+    </footer>
+  </div>
+  <script src="../../js/theme.js"></script>
+</body>
+</html>
+
+
+

@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Автоматизация рутины: скрипты для сисадмина</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="logo" href="../index.html">ALV<span>.</span></a>
+      <div class="nav-links">
+        <a href="../#about">Обо мне</a>
+        <a href="../#projects">Проекты</a>
+        <a href="index.html">Гайды</a>
+        <div class="lang-switch"><span>RU</span><a href="../en/guides/index.html" lang="en">EN</a></div><button class="theme-toggle" id="theme-toggle" title="Сменить тему">☀️</button>
+      </div>
+    </nav>
+
+    <a href="index.html" class="back-link">← Назад к гайдам</a>
+
+    <article>
+      <header class="article-header">
+        <h1>Автоматизация рутины: скрипты для сисадмина</h1>
+        <div class="article-meta">
+          <span class="date">5 июля 2026</span>
+          <span class="tag">#bash</span><span class="tag">#python</span><span class="tag">#automation</span>
+        </div>
+      </header>
+      <div class="article-body">
+
+<p>80% работы сисадмина — рутина, которую можно автоматизировать. Оставшиеся 20% — это пожаротушение, вызванное тем, что кто-то автоматизировал рутину неправильно. Давайте сделаем это правильно.</p>
+
+<h2>Сценарий 1: Мониторинг дискового пространства</h2>
+
+<p>Простой, но спасительный скрипт. Отправляет алерт, если место на корневом разделе заканчивается.</p>
+
+<pre><code>#!/bin/bash
+# disk-alert.sh — проверка свободного места
+
+THRESHOLD=90
+PARTITION="/"
+USAGE=$(df -h "$PARTITION" | awk 'NR==2 {print $5}' | sed 's/%//')
+
+if [ "$USAGE" -ge "$THRESHOLD" ]; then
+    echo "⚠️  ALERT: $PARTITION заполнен на ${USAGE}%" |         mail -s "Disk Space Alert on $(hostname)" admin@company.local
+fi
+</code></pre>
+
+<p>В cron:</p>
+
+<pre><code># Проверять каждые 30 минут
+*/30 * * * * /usr/local/bin/disk-alert.sh
+</code></pre>
+
+<h2>Сценарий 2: Ротация логов</h2>
+
+<p>logrotate — хорошо, но иногда нужно кастомное решение. Например, архивировать логи приложения и заливать на S3.</p>
+
+<pre><code>#!/usr/bin/env python3
+# log-rotate.py — кастомная ротация с заливкой в S3
+
+import os
+import gzip
+import shutil
+from datetime import datetime, timedelta
+from pathlib import Path
+import boto3  # pip install boto3
+
+LOG_DIR = Path("/var/log/myapp")
+ARCHIVE_DIR = Path("/var/log/myapp/archive")
+RETENTION_DAYS = 30
+S3_BUCKET = "company-logs"
+
+def rotate_logs():
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    for log_file in LOG_DIR.glob("*.log"):
+        # Архивируем
+        archive_name = f"{log_file.stem}-{today}.log.gz"
+        archive_path = ARCHIVE_DIR / archive_name
+
+        with open(log_file, "rb") as f_in:
+            with gzip.open(archive_path, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        # Очищаем оригинал
+        open(log_file, "w").close()
+
+        # Заливаем в S3
+        s3 = boto3.client("s3")
+        s3.upload_file(str(archive_path), S3_BUCKET, f"logs/{archive_name}")
+        print(f"Uploaded: {archive_name}")
+
+def cleanup_old():
+    cutoff = datetime.now() - timedelta(days=RETENTION_DAYS)
+
+    for archive in ARCHIVE_DIR.glob("*.gz"):
+        # Парсим дату из имени файла
+        try:
+            file_date = datetime.strptime(
+                archive.stem.split("-")[-2], "%Y-%m-%d"
+            )
+            if file_date < cutoff:
+                archive.unlink()
+                print(f"Deleted old: {archive.name}")
+        except ValueError:
+            continue
+
+if __name__ == "__main__":
+    ARCHIVE_DIR.mkdir(exist_ok=True)
+    rotate_logs()
+    cleanup_old()
+</code></pre>
+
+<h2>Сценарий 3: Массовое обновление пакетов</h2>
+
+<p>Ansible — классика, но иногда нужен быстрый однострочник для группы серверов.</p>
+
+<pre><code># Обновить все Ubuntu-серверы из inventory
+ansible all -i inventory.ini -m apt -a "update_cache=yes upgrade=dist"     --become --limit "ubuntu_servers"
+
+# Или просто через SSH + parallel
+parallel -j4 ssh {} "sudo apt update && sudo apt upgrade -y" :::     server1 server2 server3 server4
+</code></pre>
+
+<h2>Сценарий 4: Резервное копирование конфигов</h2>
+
+<pre><code>#!/bin/bash
+# backup-configs.sh — бэкап критичных конфигов в git
+
+BACKUP_DIR="/opt/backups/configs"
+REPO="git@gitlab.company.local:infra/config-backups.git"
+DATE=$(date +%Y-%m-%d_%H-%M)
+
+cd "$BACKUP_DIR" || exit 1
+
+# Копируем конфиги
+sudo cp -r /etc/nginx ./nginx-$DATE
+sudo cp -r /etc/postgresql ./postgresql-$DATE
+sudo cp /etc/hosts ./hosts-$DATE
+
+# Git commit & push
+git add .
+git commit -m "Auto backup $DATE"
+git push origin main
+
+# Оставляем только последние 10 бэкапов
+ls -t | tail -n +11 | xargs rm -rf
+</code></pre>
+
+<h2>Правила хорошей автоматизации</h2>
+
+<ol>
+  <li><strong>Логируй всё</strong>. Если скрипт молча упал в 3 ночи — ты узнаешь об этом только утром, когда всё горит.</li>
+  <li><strong>Тестируй на dev/staging</strong>. Даже очевидные однострочники могут убить прод.</li>
+  <li><strong>Используй idempotency</strong>. Скрипт должен быть безопасным для повторного запуска.</li>
+  <li><strong>Уведомляй об ошибках</strong>. Если скрипт упал — кто-то должен узнать.</li>
+  <li><strong>Документируй</strong>. Через полгода ты сам не вспомнишь, зачем тут <code>sed -i 's/foo/bar/g'</code>.</li>
+</ol>
+
+<h2>Итог</h2>
+
+<p>Автоматизация — это не про лень, а про надёжность. Человек устает и ошибается, скрипт — нет (если написан правильно). Начните с малого: один скрипт, один cron, один алерт. Потом масштабируйте.</p>
+
+      </div>
+    </article>
+
+    <footer>
+      <p>© AlexLenVin</p>
+      <div class="socials"><a href="mailto:alexlenvin@gmail.com">Email</a></div>
+    </footer>
+  </div>
+  <script src="../js/theme.js"></script>
+</body>
+</html>
+
+
+
+

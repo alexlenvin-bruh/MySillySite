@@ -1,0 +1,146 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What KSC Is and What to Do with It</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="logo" href="../index.html">ALV<span>.</span></a>
+      <div class="nav-links">
+        <a href="../index.html#about">About</a>
+        <a href="../index.html#projects">Projects</a>
+        <a href="index.html">Notes</a>
+        <div class="lang-switch"><a href="../../guides/kes-ksc-setup.html" lang="ru" hreflang="ru">RU</a><span>EN</span></div>
+        <button class="theme-toggle" id="theme-toggle" title="Change theme">☀️</button>
+      </div>
+    </nav>
+
+    <a href="index.html" class="back-link">← Back to notes</a>
+
+    <article>
+      <header class="article-header">
+        <h1>What KSC Is and What to Do with It</h1>
+        <div class="article-meta">
+          <span class="date">21 July 2026</span>
+          <span class="tag">#kaspersky</span><span class="tag">#enterprise</span><span class="tag">#sysadmin</span>
+        </div>
+      </header>
+      <div class="article-body">
+
+<p>If you have ever installed antivirus software on your home computer, you know the drill: download it, install it, and let it update, scan, and remove malware on its own. You hardly ever need to touch the settings. Once a year, you might check whether it is still alive, and that is about it.</p>
+
+<p>Now imagine that you do not have one computer but <strong>a thousand</strong>. Or five thousand. Or, as in my case… a lot. They are scattered across offices, cities, subnets, and remote employees' laptops. Running around with a flash drive to install Kaspersky by hand? That sounds rather impossible. And how are you supposed to keep track of every machine?</p>
+
+<p>This is where <strong>KSC</strong> — <strong>Kaspersky Security Center</strong> — comes in. It is a centralised security management system: you can monitor managed hosts, install things on them, change things, forbid things, and do it all from a single console.</p>
+
+<h2>Meet the Cast</h2>
+
+<h3>KSC (Kaspersky Security Center)</h3>
+
+<p>This is the central component. Traditionally, it is installed on Windows Server, although the vendor is now moving towards Linux, including <strong>Astra Linux</strong> (import substitution and all that). KSC stores:</p>
+
+<ul>
+  <li><strong>A database</strong> — information about every host, its status, events, and incidents.</li>
+  <li><strong>Policies</strong> — the rules that govern antivirus software on managed hosts.</li>
+  <li><strong>Tasks</strong> — what to do and when: scan, update, or install patches.</li>
+  <li><strong>Installation packages</strong> — KES distributions delivered to clients by KSC.</li>
+  <li><strong>Reports</strong> — pretty (and not-so-pretty) tables for management, among other people.</li>
+</ul>
+
+<h3>KES (Kaspersky Endpoint Security)</h3>
+
+<p>This is the client side: the antivirus software installed on a workstation or server. KES is the familiar “antivirus” in the traditional sense — file monitoring, scanning, heuristics, network protection, device control, and so on.</p>
+
+<p>KES on its own, however, does not know what you expect from it. Its behaviour depends on the licence key, the system it reports to — KSC or Kaspersky Anti Targeted Attack — and the policies assigned by the administration server.</p>
+
+<h3>Network Agent (Security Center Agent)</h3>
+
+<p>This is a small application installed on every host. It provides communication between KES and KSC.</p>
+
+<h2>How It All Works Together</h2>
+
+<p>The whole system follows a simple principle: centralised management, distributed execution.</p>
+
+<p><strong>KSC</strong> runs on a dedicated server, but distribution points can — and should — be created as well. KSC becomes the single management point for the entire antivirus infrastructure, while distribution points help it do the job.</p>
+
+<p><strong>Network Agents</strong> are installed on target hosts. They provide two-way communication: they receive policies and tasks from KSC, then send statuses, events, and execution results back.</p>
+
+<p><strong>KES</strong> is installed alongside or on top of the agent and performs the actual protection: monitoring the file system and network traffic, controlling devices and applications. Its settings come from KSC through the agent.</p>
+
+<p>For remote branches or isolated network segments, <strong>distribution points</strong> are deployed as local nodes that cache database updates and installation packages. This reduces the load on network links and speeds up content delivery.</p>
+
+<p>Policies and tasks are assigned not to individual hosts but to <strong>administration groups</strong> — logical collections of machines. This makes bulk management possible: change a policy once, and it is applied to hundreds of hosts.</p>
+
+<h2>Why Bother When You Can “Just Install Antivirus”?</h2>
+
+<p>On a home computer, you can. In an enterprise, not so much:</p>
+
+<table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">Without KSC</th>
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">With KSC</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Every host must be managed separately</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Everything can be managed from one console</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">No clear view of where an outbreak is happening</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Incidents are visible in real time</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Every machine updates however it can</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Updates are managed centrally</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Security policies exist mostly in theory</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Policies are enforced and monitored</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">USB drives are the users' sacred right</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">USB access can be disabled across the estate in five minutes</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>And Who Is KICS?</h2>
+
+<p><strong>Kaspersky Industrial CyberSecurity</strong> is a separate product designed to protect industrial networks: ICS, SCADA, and PLC environments. While KES protects ordinary Windows machines, KICS works with systems you cannot simply poke at, because doing so might stop an entire factory.</p>
+
+<p>The basic architecture is similar: a management centre, agents on hosts, and policies. The hosts, however, are not office PCs but data collection servers, operator workstations, and network gateways. The stability requirements are on another level entirely.</p>
+
+<h2>A Few Terms You Will Encounter</h2>
+
+<ul>
+  <li><strong>Policy</strong> — a set of KES settings. One policy is essentially one antivirus behaviour profile.</li>
+  <li><strong>Task</strong> — a one-off or recurring action, such as scanning drive C: or updating databases.</li>
+  <li><strong>Administration group</strong> — a logical collection of hosts, useful for applying policies in bulk.</li>
+  <li><strong>Distribution point</strong> — a local server in a branch or subnet. It caches updates, distributes them to hosts, and relays policies so that every laptop does not have to download databases from the internet.</li>
+  <li><strong>Event / incident</strong> — anything that happened on a host and that KES considered worth reporting, from “malware detected” to “a user plugged in a flash drive.”</li>
+</ul>
+
+<h2>In Short</h2>
+
+<p>KSC is an infrastructure tool that lets you manage security across hundreds or thousands of hosts without losing your mind. KES is the workhorse on each machine. The agent ties them together. Together, they turn chaos into a more or less manageable process.</p>
+
+      </div>
+    </article>
+
+    <footer>
+      <p>© AlexLenVin</p>
+      <div class="socials"><a href="mailto:alexlenvin@gmail.com">Email</a></div>
+    </footer>
+  </div>
+  <script src="../../js/theme.js"></script>
+</body>
+</html>
+
+
+

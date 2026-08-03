@@ -1,0 +1,186 @@
+﻿<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Сплайны: как заставить кривую вести себя прилично</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="logo" href="../index.html">ALV<span>.</span></a>
+      <div class="nav-links">
+        <a href="../#about">Обо мне</a>
+        <a href="../#projects">Проекты</a>
+        <a href="index.html">Заметки</a>
+        <div class="lang-switch"><span>RU</span><a href="../en/guides/splines.html" lang="en">EN</a></div><button class="theme-toggle" id="theme-toggle" title="Сменить тему">☀️</button>
+      </div>
+    </nav>
+
+    <a href="index.html" class="back-link">← Назад к заметкам</a>
+
+    <article>
+      <header class="article-header">
+        <h1>Сплайны: как заставить кривую вести себя прилично</h1>
+        <div class="article-meta">
+          <span class="date">23 июля 2026</span>
+          <span class="tag">#численные-методы</span><span class="tag">#python</span><span class="tag">#матан</span>
+        </div>
+      </header>
+      <div class="article-body">
+
+<p>Представьте: у вас есть несколько точек, и вам нужно провести через них плавную кривую. Можно соединить всё прямыми отрезками — получится ломаная. Грубо, некрасиво, производная скачет на каждом стыке. Можно взять один большой полином, который проходит через все точки — но это полиномиальная интерполяция, и она умеет взрываться на краях (привет, явление Рунге). А можно сделать красиво — и тут приходят <strong>сплайны</strong>.</p>
+
+<h2>Что такое сплайн</h2>
+
+<p><strong>Сплайн</strong> — это кусочно-заданная функция: на каждом промежутке между контрольными точками своя формула (обычно полином), и в местах стыков всё аккуратно склеено.</p>
+
+<p>Несколько терминов, которые будут встречаться:</p>
+
+<ul>
+  <li><strong>Контрольные (опорные) точки</strong> — точки, в которых известно значение функции. По ним строятся фрагменты сплайна.</li>
+  <li><strong>Контрольная ломаная</strong> — ломаная, соединяющая контрольные точки. Фактически это линейный сплайн — самый простой случай.</li>
+  <li><strong>Степень сплайна</strong> — максимальная степень использованных полиномов.</li>
+  <li><strong>Гладкость</strong> — максимальный порядок непрерывной производной. Чем выше, тем «плавнее» стыки.</li>
+  <li><strong>Дефект</strong> — разность между степенью и гладкостью. Ломаная — это сплайн степени 1 и дефекта 1.</li>
+</ul>
+
+<p>Нас интересует кубический сплайн: степень 3, гладкость 2. Это значит, что на каждом отрезке — кубический полином, а в точках склейки совпадают сами значения, первая и вторая производные.</p>
+
+<h2>Задача</h2>
+
+<p>Нужно построить кубический сплайн для функции \(\cos(x^2)\) на отрезке \([0, 5]\) — для двух сеток: с \(n = 5\) и \(n = 25\) узлами. Потом сравнить, насколько сплайн «промахивается» относительно настоящей функции.</p>
+
+<h2>Как это работает</h2>
+
+<p>На каждом отрезке \([x_{k-1},\, x_k]\) сплайн выглядит как:</p>
+
+$$S(x) = a_k + b_k(x - x_{k-1}) + c_k(x - x_{k-1})^2 + d_k(x - x_{k-1})^3$$
+
+<p>Коэффициенты \(a\) — это просто значения функции в узлах. А вот чтобы найти \(b\), \(c\), \(d\), нужно решить систему уравнений. Для равномерной сетки (шаг \(h\) одинаковый) она выглядит так:</p>
+
+$$c_{k-1} \cdot h + 2c_k \cdot (h + h) + c_{k+1} \cdot h = 3\left(\frac{y_{k+1} - y_k}{h} - \frac{y_k - y_{k-1}}{h}\right)$$
+
+<p>Это даёт трёхдиагональную матрицу — почти идеальный кандидат для <strong>метода прогонки (алгоритм Томаса)</strong>.</p>
+
+<h2>Метод прогонки</h2>
+
+<p>Трёхдиагональные системы можно решать через обычный Gaussian elimination, но метод прогонки делает это быстрее — за \(O(n)\) вместо \(O(n^3)\). Идея: сначала прямой ход, вычисляем вспомогательные коэффициенты \(P\) и \(Q\), потом обратный — восстанавливаем \(c\) по очереди от последнего к первому.</p>
+
+<pre>
+# Прямой ход
+P[0] = −h / (4h)
+Q[0] = r[0] / (4h)
+
+for i in range(1, n−1):
+    D = h·P[i−1] + 4h
+    P[i] = −h / D
+    Q[i] = (r[i] − h·Q[i−1]) / D
+
+# Обратный ход
+c[n−1] = Q[n−1]
+for i in range(n−2, −1, −1):
+    c[i] = P[i]·c[i+1] + Q[i]
+</pre>
+
+<p>Чтобы убедиться, что прогонка работает правильно, результат можно проверить через <code>numpy.linalg.solve</code> — они должны совпасть.</p>
+
+<h2>Строим сетку и считаем</h2>
+
+<pre>
+import math
+
+a, b = 0, 5
+
+# n = 5
+n1 = 5
+h1 = (b - a) / n1
+grid_1_x = [i for i in range(n1 + 1)]
+grid_1_y = [math.cos((i * h1)**2) for i in range(n1 + 1)]
+
+# n = 25
+n2 = 25
+h2 = (b - a) / n2
+grid_2_x = [i * h2 for i in range(n2 + 1)]
+grid_2_y = [math.cos((i * h2)**2) for i in range(n2 + 1)]
+</pre>
+
+<p>После того как коэффициенты найдены, сплайн можно вычислить в любой точке — берёшь нужный отрезок и подставляешь в формулу с <code>a</code>, <code>b</code>, <code>c</code>, <code>d</code>.</p>
+
+<h2>Точность: n = 5 против n = 25</h2>
+
+<p>Чтобы оценить точность, считаем значения в серединах каждого отрезка и смотрим на разницу между сплайном и настоящей функцией.</p>
+
+<table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">Параметр</th>
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">\(n = 5\)</th>
+      <th style="text-align:left; padding: 10px 12px; font-weight: 600;">\(n = 25\)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Шаг сетки \(h\)</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">1.0</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">0.2</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Количество отрезков</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">5</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">25</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">Погрешность</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">заметная — функция быстро осциллирует</td>
+      <td style="padding: 10px 12px; color: var(--text-secondary);">на порядки меньше</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Функция \(\cos(x^2)\) — коварная: чем дальше от нуля, тем чаще она осциллирует. При \(n = 5\) и шаге \(h = 1\) сплайн не успевает за этими колебаниями. При \(n = 25\) сетка намного плотнее, и точность резко возрастает. Это хорошо видно на графике: правая часть при \(n = 25\) совпадает с автосплайном почти идеально, тогда как серая линия (авто) и чёрная (ручной) заметно расходятся только там, где функция меняется особенно быстро.</p>
+
+<figure style="margin: 24px 0;">
+  <img src="spline-graph-n25.png" alt="График сплайна для n=25: ручной и авто совпадают почти идеально" style="width: 100%; border-radius: 8px;">
+  <figcaption style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9em;">Сплайн при n = 25. Серый — scipy.CubicSpline, чёрный — ручной расчёт. Звёздочки — узлы сетки.</figcaption>
+</figure>
+
+<h2>Графики в коде</h2>
+
+<p>Для визуализации сплайн собирается как кусочная функция через <code>sympy.Piecewise</code>, потом «компилируется» в быстрый numpy-вариант через <code>lambdify</code>. Дополнительно строится «эталонный» сплайн через <code>scipy.interpolate.CubicSpline</code> — чтобы видеть, насколько ручной расчёт совпадает с библиотечным.</p>
+
+<pre>
+import sympy as sm
+
+x = sm.Symbol('x')
+S = sm.Piecewise(*[
+    (a_k + b_k*(x - x_prev) + c_k*(x - x_prev)**2 + d_k*(x - x_prev)**3,
+     (x >= x_prev) & (x <= x_next))
+    for k in range(1, n+1)
+], (sm.nan, True))
+
+S_func = sm.lambdify(x, S, modules=['numpy'])
+</pre>
+
+<h2>Итог</h2>
+
+<p>Кубические сплайны — это способ строить гладкие кривые через набор точек без взрывного роста погрешности. Ключевое: чем плотнее сетка, тем точнее результат. Для «спокойных» функций хватит небольшого \(n\), а вот для быстроменяющихся — нужно узлов побольше. Метод прогонки при этом позволяет решить систему уравнений за линейное время, что делает всю схему вполне практичной даже для больших сеток.</p>
+
+      </div>
+    </article>
+
+    <footer>
+      <p>© AlexLenVin</p>
+      <div class="socials"><a href="mailto:alexlenvin@gmail.com">Email</a></div>
+    </footer>
+  </div>
+  <script src="../js/theme.js"></script>
+</body>
+</html>
+
+
+
+
+

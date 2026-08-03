@@ -1,0 +1,158 @@
+﻿<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ML с нуля: k-средних на чистом Python</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="logo" href="../index.html">ALV<span>.</span></a>
+      <div class="nav-links">
+        <a href="../#about">Обо мне</a>
+        <a href="../#projects">Проекты</a>
+        <a href="index.html">Заметки</a>
+        <div class="lang-switch"><span>RU</span><a href="../en/guides/index.html" lang="en">EN</a></div><button class="theme-toggle" id="theme-toggle" title="Сменить тему">☀️</button>
+      </div>
+    </nav>
+
+    <a href="index.html" class="back-link">← Назад к заметкам</a>
+
+    <article>
+      <header class="article-header">
+        <h1>ML с нуля: k-средних на чистом Python</h1>
+        <div class="article-meta">
+          <span class="date">10 июля 2026</span>
+          <span class="tag">#python</span><span class="tag">#ml</span><span class="tag">#numpy</span>
+        </div>
+      </header>
+      <div class="article-body">
+
+<p>Библиотеки вроде scikit-learn делают машинное обучение слишком простым. Иногда полезно реализовать алгоритм руками, чтобы понять, как он работает изнутри. Сегодня — k-means (k-средних) на чистом Python + NumPy.</p>
+
+<h2>Идея алгоритма</h2>
+
+<p>Дано: набор точек в n-мерном пространстве. Нужно разбить их на <code>k</code> кластеров так, чтобы сумма квадратов расстояний от точек до центров их кластеров была минимальной.</p>
+
+<ol>
+  <li>Инициализируем <code>k</code> центров случайно (или умно — k-means++).</li>
+  <li>Повторяем до сходимости:
+    <ul>
+      <li>Каждую точку относим к ближайшему центру.</li>
+      <li>Пересчитываем центры как среднее точек кластера.</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>Реализация с нуля</h2>
+
+<pre><code>import numpy as np
+import matplotlib.pyplot as plt
+
+class KMeans:
+    def __init__(self, k=3, max_iters=100, tol=1e-4):
+        self.k = k
+        self.max_iters = max_iters
+        self.tol = tol
+        self.centroids = None
+        self.labels = None
+
+    def fit(self, X):
+        n_samples, n_features = X.shape
+
+        # Инициализация: случайные центры из данных
+        rng = np.random.default_rng(42)
+        idx = rng.choice(n_samples, self.k, replace=False)
+        self.centroids = X[idx].copy()
+
+        for iteration in range(self.max_iters):
+            # Шаг 1: назначение точек к ближайшему центру
+            distances = np.linalg.norm(X[:, np.newaxis] - self.centroids, axis=2)
+            self.labels = np.argmin(distances, axis=1)
+
+            # Шаг 2: пересчёт центров
+            new_centroids = np.array([
+                X[self.labels == i].mean(axis=0) 
+                if np.sum(self.labels == i) > 0 
+                else self.centroids[i]
+                for i in range(self.k)
+            ])
+
+            # Проверка сходимости
+            shift = np.linalg.norm(new_centroids - self.centroids)
+            self.centroids = new_centroids
+
+            if shift < self.tol:
+                print(f"Сошлось за {iteration + 1} итераций")
+                break
+
+        return self
+
+    def predict(self, X):
+        distances = np.linalg.norm(X[:, np.newaxis] - self.centroids, axis=2)
+        return np.argmin(distances, axis=1)
+
+    def inertia(self, X):
+        """Сумма квадратов расстояний до центров — метрика качества."""
+        distances = np.linalg.norm(X - self.centroids[self.labels], axis=1)
+        return np.sum(distances ** 2)
+
+
+# --- Тест ---
+from sklearn.datasets import make_blobs
+
+X, y_true = make_blobs(n_samples=300, centers=4, cluster_std=0.6, random_state=42)
+
+kmeans = KMeans(k=4)
+kmeans.fit(X)
+
+print(f"Inertia (ручная): {kmeans.inertia(X):.2f}")
+
+# Сравним со sklearn
+from sklearn.cluster import KMeans as SKKMeans
+sk_kmeans = SKKMeans(n_clusters=4, random_state=42, n_init=10).fit(X)
+print(f"Inertia (sklearn): {sk_kmeans.inertia_:.2f}")
+</code></pre>
+
+<h2>Ключевые моменты</h2>
+
+<ul>
+  <li><strong>Инициализация важна</strong>. Случайные центры могут дать плохой результат. В sklearn используется k-means++ — умная инициализация, которая выбивает центры подальше друг от друга.</li>
+  <li><strong>Сходимость гарантирована</strong>, но к локальному минимуму. Запускайте несколько раз с разными начальными условиями.</li>
+  <li><strong>Метрика inertia</strong> — полезна для выбора <code>k</code> (метод локтя).</li>
+</ul>
+
+<h2>Метод локтя</h2>
+
+<pre><code>inertias = []
+K_range = range(1, 10)
+
+for k in K_range:
+    km = KMeans(k=k).fit(X)
+    inertias.append(km.inertia(X))
+
+# Ищем "локоть" — точку, где уменьшение inertia замедляется
+# plt.plot(K_range, inertias, 'bo-')
+</code></pre>
+
+<h2>Итог</h2>
+
+<p>Ручная реализация k-means занимает ~40 строк и даёт полное понимание алгоритма. Разница inertia с sklearn обычно в пределах погрешности округления. Попробуйте добавить k-means++ инициализацию — это отличное упражнение.</p>
+
+      </div>
+    </article>
+
+    <footer>
+      <p>© AlexLenVin</p>
+      <div class="socials"><a href="mailto:alexlenvin@gmail.com">Email</a></div>
+    </footer>
+  </div>
+  <script src="../js/theme.js"></script>
+</body>
+</html>
+
+
+
+

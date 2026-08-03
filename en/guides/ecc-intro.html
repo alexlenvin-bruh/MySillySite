@@ -1,0 +1,99 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>An Introduction to Elliptic Curves with Complex Multiplication</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="logo" href="../index.html">ALV<span>.</span></a>
+      <div class="nav-links">
+        <a href="../index.html#about">About</a>
+        <a href="../index.html#projects">Projects</a>
+        <a href="index.html">Notes</a>
+        <div class="lang-switch"><a href="../../guides/ecc-intro.html" lang="ru" hreflang="ru">RU</a><span>EN</span></div>
+        <button class="theme-toggle" id="theme-toggle" title="Change theme">☀️</button>
+      </div>
+    </nav>
+
+    <a href="index.html" class="back-link">← Back to notes</a>
+
+    <article>
+      <header class="article-header">
+        <h1>An Introduction to Elliptic Curves with Complex Multiplication</h1>
+        <div class="article-meta">
+          <span class="date">15 July 2026</span>
+          <span class="tag">#crypto</span><span class="tag">#math</span><span class="tag">#ecc</span>
+        </div>
+      </header>
+      <div class="article-body">
+
+<p>Elliptic curves are beautiful mathematical objects that make it possible to build strong cryptography with small keys. Elliptic curves with complex multiplication (CM) take that beauty to an entirely different level.</p>
+
+<h2>Why CM?</h2>
+
+<p>In ordinary ECC, computing the order of a curve's group of points is difficult and slow. CM curves let us <strong>construct curves with a prescribed order</strong> using the theory of imaginary quadratic fields.</p>
+
+<p>Roughly speaking, rather than taking a random curve and praying that its order is prime, we build a curve whose order is guaranteed to be prime — or nearly prime — for the chosen parameters.</p>
+
+<h2>The Mathematics Behind It</h2>
+
+<p>Let <code>E</code> be an elliptic curve over the field <code>𝔽_p</code>. Complex multiplication means that the endomorphism ring <code>End(E)</code> is strictly larger than <code>ℤ</code>.</p>
+
+<p>There is a construction algorithm for CM curves:</p>
+
+<ol>
+  <li>Choose a discriminant <code>D &lt; 0</code> of an imaginary quadratic field <code>ℚ(√D)</code>.</li>
+  <li>Find a value of <code>p</code> for which <code>4p = t² - D·y²</code> has an integer solution.</li>
+  <li>Use the Hilbert class polynomial <code>H_D(x)</code> to find the <code>j</code>-invariant.</li>
+  <li>Construct a curve over <code>𝔽_p</code> with that <code>j</code>-invariant.</li>
+</ol>
+
+<h2>The Hilbert Class Polynomial</h2>
+
+<p>This is a polynomial whose roots are the <code>j</code>-invariants of CM curves for a given discriminant <code>D</code>. For small values of <code>D</code>, it can be computed explicitly:</p>
+
+<pre><code># Example: computing the Hilbert class polynomial for D = -3
+# (simplified — the real process is far more involved)
+
+from sageall import *
+
+D = -3
+H = hilbert_class_polynomial(D)
+print(H)
+# x - 54000 for D = -3 (the j-invariant of y² = x³ + 1)
+</code></pre>
+
+<p>For larger values of <code>D</code>, complex analytic methods with floating-point arithmetic or <code>p</code>-adic methods are used.</p>
+
+<h2>Practical Applications</h2>
+
+<p>CM curves are used in:</p>
+
+<ul>
+  <li><strong>Pairing-based cryptography</strong> — to build cryptosystems with bilinear maps.</li>
+  <li><strong>Post-quantum groundwork</strong> — the study of isogenies between CM curves.</li>
+  <li><strong>Secure parameter generation</strong> — when a curve with precisely known properties is required.</li>
+</ul>
+
+<h2>In Short</h2>
+
+<p>CM is more than abstract beauty. It is a tool for constructing cryptographically meaningful objects with controlled properties. If you have SageMath at hand, try playing with <code>hilbert_class_polynomial</code> for different values of <code>D</code>. It is mesmerising.</p>
+
+      </div>
+    </article>
+
+    <footer>
+      <p>© AlexLenVin</p>
+      <div class="socials"><a href="mailto:alexlenvin@gmail.com">Email</a></div>
+    </footer>
+  </div>
+  <script src="../../js/theme.js"></script>
+</body>
+</html>
+
+
+
